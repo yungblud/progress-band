@@ -5,7 +5,7 @@ description: Keep the progress-band files up to date while you coordinate subage
 
 # progress-band
 
-The `progress-band` plugin draws a bar above the prompt from files in this session's own folder, `.claude/progress/<session id>/` under the session's working directory. Find it with Bash: `echo "$PWD/.claude/progress/$CLAUDE_CODE_SESSION_ID"` from the session's working directory. Plugins cannot add this to your context where an organization's security plugin runs first, so do not wait for a line that names it. Write every file there, never in `.claude/progress/` itself, because other sessions in the same repo share that parent. The plugin reads the folder every 5 seconds. With no `program.json` it draws nothing.
+The `progress-band` plugin draws a bar above the prompt from files in this session's own folder, `.claude/progress/<session id>/` under the session's project root, the directory the session started in. A shell `cd` does not move that folder. Find it with Bash from the project root: `echo "$PWD/.claude/progress/$CLAUDE_CODE_SESSION_ID"`. If your shell has moved, `cd` back to the project root first. Plugins cannot add this to your context where an organization's security plugin runs first, so do not wait for a line that names it. Write every file there, never in `.claude/progress/` itself, because other sessions in the same repo share that parent. The plugin reads the folder every 5 seconds. With no `program.json` it draws nothing.
 
 ## Files
 

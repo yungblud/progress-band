@@ -19,7 +19,7 @@ Answer `y` to add the marketplace, then pick a scope.
 
 ## How it works
 
-The plugin reads `.claude/progress/<session id>/` under the session's working directory, so two terminals open in the same repo each draw their own band. The skill has Claude find the folder from `$CLAUDE_CODE_SESSION_ID`, which Claude Code sets in the Bash tool's environment. Plugins cannot inject that path into the model's context where an organization's security plugin answers the context hooks first. With no `program.json` there, it draws nothing, so it is safe to install globally.
+The plugin reads `.claude/progress/<session id>/` under the session's project root, so two terminals open in the same repo each draw their own band, and a shell `cd` into a subfolder does not hide it. The skill has Claude find the folder from `$CLAUDE_CODE_SESSION_ID`, which Claude Code sets in the Bash tool's environment. Plugins cannot inject that path into the model's context where an organization's security plugin answers the context hooks first. With no `program.json` there, it draws nothing, so it is safe to install globally.
 
 - `program.json` lists the work items. Only the coordinator writes it.
 - `<agent>.json` holds one agent's progress, `{ "step": "tests", "done": 7, "total": 20 }`. Only that agent writes it.
