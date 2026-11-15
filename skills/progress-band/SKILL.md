@@ -5,13 +5,13 @@ description: Keep the progress-band files up to date while you coordinate subage
 
 # progress-band
 
-The `progress-band` plugin draws a bar above the prompt from files in `.claude/progress/` under the session's working directory. It reads them every 5 seconds. With no `program.json` it draws nothing.
+The `progress-band` plugin draws a bar above the prompt from files in this session's own folder, `.claude/progress/<session id>/` under the session's working directory. The system prompt names the folder's absolute path in a line that starts `progress-band: this session's progress folder is`. Write every file there, never in `.claude/progress/` itself, because other sessions in the same repo share that parent. The plugin reads the folder every 5 seconds. With no `program.json` it draws nothing.
 
 ## Files
 
 One writer per file, so no two agents ever write the same file.
 
-`.claude/progress/program.json`. Only the coordinator writes this file.
+`<session folder>/program.json`. Only the coordinator writes this file.
 
 ```json
 {
@@ -31,7 +31,7 @@ One writer per file, so no two agents ever write the same file.
 - `agent` names the item's progress file, `<agent>.json`.
 - `locale` is `en` or `ko`. It defaults to `en`.
 
-`.claude/progress/<agent>.json`. Only that agent writes this file, and it overwrites the whole file each time.
+`<session folder>/<agent>.json`. Only that agent writes this file, and it overwrites the whole file each time.
 
 ```json
 { "step": "tests", "done": 7, "total": 20 }
@@ -39,7 +39,7 @@ One writer per file, so no two agents ever write the same file.
 
 ## Coordinator duties
 
-1. Create the folder with a `.gitignore` that holds `*`, so the files never reach a commit.
+1. Create the session folder. Put a `.gitignore` that holds `*` in `.claude/progress/` if none is there, so no session's files reach a commit.
 2. Write `program.json` before you spawn the first agent.
 3. In every agent brief, give the absolute path of its file and the `total` it counts against. Tell it to overwrite the file after each unit of work and on each step change.
 4. Move an item to `review` when its PR opens, to `done` when it merges, and from `waiting` to `active` when you spawn its agent.
