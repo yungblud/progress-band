@@ -118,21 +118,3 @@ test('a second session in the same folder sees neither the first session\'s prog
   expect((await ui.find({ type: 'Text' }))?.text).toBe('engine')
   await ui.unmount()
 })
-
-test('the system prompt names this session\'s own progress folder', async ($, on) => {
-  seed(on, files(null, ''))
-  on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'hi', scope: 'shared' }] }))
-  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-
-  const { sections } = await $.prompt.compose({
-    model: 'm',
-    promptModel: 'm',
-    surfaces: ['terminal'],
-    tools: [],
-    outputStyle: null,
-    traits: [],
-  })
-  const folder = sections.find(section => section.id === 'progress-band:folder')
-  expect(folder?.scope).toBe('session')
-  expect(folder?.text).toContain(`/repo/${FOLDER}`)
-})

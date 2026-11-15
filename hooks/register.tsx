@@ -107,8 +107,6 @@ const padCells = (text: string, width: number): string =>
 /** This session's own progress folder, so two terminals in one repo never share a band. */
 const sessionDir = async ($: EngineInterface): Promise<string> => `${ROOT}/${await $.session.id()}`
 
-let cwd = ''
-
 /** Reads program.json and each named agent's progress file; null when there is no program. */
 async function load($: EngineInterface): Promise<Snapshot | null> {
   const dir = await sessionDir($)
@@ -160,25 +158,8 @@ async function refresh($: EngineInterface): Promise<void> {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    cwd = e.cwd
     await refresh($)
     return next(e)
-  })
-
-  on('prompt.compose', async ($, e, next) => {
-    const result = await next(e)
-    const dir = await sessionDir($)
-    const path = cwd ? `${cwd}/${dir}` : dir
-    return {
-      sections: [
-        ...result.sections,
-        {
-          id: 'progress-band:folder',
-          text: `progress-band: this session's progress folder is ${path}. Write program.json and every agent progress file there, never in ${ROOT}/ itself, which other sessions share.`,
-          scope: 'session',
-        },
-      ],
-    }
   })
 
   on('turn.complete', async ($, e, next) => {
