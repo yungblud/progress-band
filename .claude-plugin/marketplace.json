@@ -1,0 +1,13 @@
+{
+  "name": "progress-band",
+  "description": "progress-band: a live progress bar above the Claude Code prompt for multi-agent work.",
+  "owner": {
+    "name": "yungblud"
+  },
+  "plugins": [
+    {
+      "name": "progress-band",
+      "source": "./"
+    }
+  ]
+}
