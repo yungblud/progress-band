@@ -33,22 +33,25 @@ const files = (program: string | null, billing: string, billingMtime = NOW) => (
 })
 
 const SESSION = 'sess-a'
-const FOLDER = `.claude/progress/${SESSION}`
+const PROJECT = '/repo'
+const FOLDER = `${PROJECT}/.claude/progress/${SESSION}`
 
-const seed = (on: On, fixture: ReturnType<typeof files>, session = SESSION) => {
+const seed = (on: On, fixture: ReturnType<typeof files>, cwd = PROJECT) => {
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('session.id', () => ({ value: session }))
+  on('session.id', () => ({ value: SESSION }))
+  on('session.root', () => ({ value: PROJECT }))
+  on('session.cwd', () => ({ value: cwd }))
   on('clock.now', () => ({ value: NOW }))
   on('clock.every', () => ({ value: undefined }))
-  on('fs.exists', (_, e) => ({ value: e.path.endsWith(`${FOLDER}/program.json`) && fixture['program.json'] !== null }))
+  on('fs.exists', (_, e) => ({ value: e.path === `${FOLDER}/program.json` && fixture['program.json'] !== null }))
   on('fs.list', (_, e) => ({
-    value: !e.path.endsWith(FOLDER) ? [] : [
+    value: e.path !== FOLDER ? [] : [
       { name: 'program.json', kind: 'file', size: 1, mtimeMs: NOW, isLink: false },
       { name: 'billing.json', kind: 'file', size: 1, mtimeMs: fixture.billingMtime, isLink: false },
     ],
   }))
   on('fs.read', (_, e) => ({
-    value: !e.path.includes(`${FOLDER}/`)
+    value: !e.path.startsWith(`${FOLDER}/`)
       ? ''
       : e.path.endsWith('program.json')
         ? (fixture['program.json'] ?? '')
@@ -66,6 +69,15 @@ test('the band shows the weighted percent, the running agent and what is next', 
   expect((await ui.find({ type: 'Text', text: /5\/10 tests/ }))?.text).toContain('5/10 tests')
   expect((await ui.find({ type: 'Text', text: /Cleanup/ }))?.text).toContain('next')
   expect(await ui.find({ type: 'Text', text: /unchanged/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('a shell cd into a subfolder keeps the band', async ($, on) => {
+  seed(on, files(PROGRAM, JSON.stringify({ step: 'tests', done: 5, total: 10 })), `${PROJECT}/apps/web`)
+  await $.session.start({ cwd: `${PROJECT}/apps/web`, surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /58%/ }))?.text).toContain('58%')
   await ui.unmount()
 })
 
@@ -103,6 +115,7 @@ test('a malformed program.json says so instead of failing quietly', async ($, on
 test('a second session in the same folder sees neither the first session\'s program nor the shared folder', async ($, on) => {
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.id', () => ({ value: 'sess-b' }))
+  on('session.root', () => ({ value: PROJECT }))
   on('clock.now', () => ({ value: NOW }))
   on('clock.every', () => ({ value: undefined }))
   on('fs.exists', (_, e) => ({ value: !e.path.includes('sess-b') }))

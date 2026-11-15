@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentProgress, Item, ItemState, Locale, Snapshot } from '../types'
 
-/** Folder, relative to the session's working directory, that holds one subfolder of progress files per session. */
+/** Folder, under the session's project root, that holds one subfolder of progress files per session. */
 const ROOT = '.claude/progress'
 const POLL_MS = 5000
 const DEFAULT_STALE_MINUTES = 15
@@ -104,8 +104,9 @@ const cells = (text: string): number =>
 const padCells = (text: string, width: number): string =>
   text + ' '.repeat(Math.max(0, width - cells(text)))
 
-/** This session's own progress folder, so two terminals in one repo never share a band. */
-const sessionDir = async ($: EngineInterface): Promise<string> => `${ROOT}/${await $.session.id()}`
+/** This session's own progress folder under its project root, which a shell `cd` does not move. */
+const sessionDir = async ($: EngineInterface): Promise<string> =>
+  `${await $.session.root()}/${ROOT}/${await $.session.id()}`
 
 /** Reads program.json and each named agent's progress file; null when there is no program. */
 async function load($: EngineInterface): Promise<Snapshot | null> {
