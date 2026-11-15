@@ -3,8 +3,8 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentProgress, Item, ItemState, Locale, Snapshot } from '../types'
 
-/** Folder, relative to the session's working directory, that holds the progress files. */
-const DIR = '.claude/progress'
+/** Folder, relative to the session's working directory, that holds one subfolder of progress files per session. */
+const ROOT = '.claude/progress'
 const POLL_MS = 5000
 const DEFAULT_STALE_MINUTES = 15
 
@@ -104,21 +104,27 @@ const cells = (text: string): number =>
 const padCells = (text: string, width: number): string =>
   text + ' '.repeat(Math.max(0, width - cells(text)))
 
+/** This session's own progress folder, so two terminals in one repo never share a band. */
+const sessionDir = async ($: EngineInterface): Promise<string> => `${ROOT}/${await $.session.id()}`
+
+let cwd = ''
+
 /** Reads program.json and each named agent's progress file; null when there is no program. */
 async function load($: EngineInterface): Promise<Snapshot | null> {
-  if (!(await $.fs.exists(`${DIR}/program.json`))) return null
+  const dir = await sessionDir($)
+  if (!(await $.fs.exists(`${dir}/program.json`))) return null
 
-  const raw = parse<unknown>(await $.fs.read(`${DIR}/program.json`).catch(() => ''))
+  const raw = parse<unknown>(await $.fs.read(`${dir}/program.json`).catch(() => ''))
   if (!isProgram(raw)) {
     return { title: 'progress', locale: 'en', staleMinutes: DEFAULT_STALE_MINUTES, items: [], error: 'malformed' }
   }
 
-  const entries = await $.fs.list(DIR).catch(() => [])
+  const entries = await $.fs.list(dir).catch(() => [])
   const now = await $.clock.now()
   const items: Item[] = []
   for (const item of raw.items) {
     const entry = item.agent ? entries.find(file => file.name === `${item.agent}.json`) : undefined
-    const text = entry ? await $.fs.read(`${DIR}/${entry.name}`).catch(() => '') : ''
+    const text = entry ? await $.fs.read(`${dir}/${entry.name}`).catch(() => '') : ''
     const file = entry ? parse<unknown>(text) : null
     const agent: AgentProgress | null =
       entry && isAgent(file)
@@ -154,8 +160,25 @@ async function refresh($: EngineInterface): Promise<void> {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
+    cwd = e.cwd
     await refresh($)
     return next(e)
+  })
+
+  on('prompt.compose', async ($, e, next) => {
+    const result = await next(e)
+    const dir = await sessionDir($)
+    const path = cwd ? `${cwd}/${dir}` : dir
+    return {
+      sections: [
+        ...result.sections,
+        {
+          id: 'progress-band:folder',
+          text: `progress-band: this session's progress folder is ${path}. Write program.json and every agent progress file there, never in ${ROOT}/ itself, which other sessions share.`,
+          scope: 'session',
+        },
+      ],
+    }
   })
 
   on('turn.complete', async ($, e, next) => {

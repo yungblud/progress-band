@@ -19,7 +19,7 @@ Answer `y` to add the marketplace, then pick a scope.
 
 ## How it works
 
-The plugin reads `.claude/progress/` under the session's working directory. With no `program.json` there, it draws nothing, so it is safe to install globally.
+The plugin reads `.claude/progress/<session id>/` under the session's working directory, so two terminals open in the same repo each draw their own band. It names that folder to Claude in the system prompt. With no `program.json` there, it draws nothing, so it is safe to install globally.
 
 - `program.json` lists the work items. Only the coordinator writes it.
 - `<agent>.json` holds one agent's progress, `{ "step": "tests", "done": 7, "total": 20 }`. Only that agent writes it.

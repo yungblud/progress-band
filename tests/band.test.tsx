@@ -32,19 +32,27 @@ const files = (program: string | null, billing: string, billingMtime = NOW) => (
   billingMtime,
 })
 
-const seed = (on: On, fixture: ReturnType<typeof files>) => {
+const SESSION = 'sess-a'
+const FOLDER = `.claude/progress/${SESSION}`
+
+const seed = (on: On, fixture: ReturnType<typeof files>, session = SESSION) => {
   on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('session.id', () => ({ value: session }))
   on('clock.now', () => ({ value: NOW }))
   on('clock.every', () => ({ value: undefined }))
-  on('fs.exists', (_, e) => ({ value: e.path.endsWith('program.json') && fixture['program.json'] !== null }))
-  on('fs.list', () => ({
-    value: [
+  on('fs.exists', (_, e) => ({ value: e.path.endsWith(`${FOLDER}/program.json`) && fixture['program.json'] !== null }))
+  on('fs.list', (_, e) => ({
+    value: !e.path.endsWith(FOLDER) ? [] : [
       { name: 'program.json', kind: 'file', size: 1, mtimeMs: NOW, isLink: false },
       { name: 'billing.json', kind: 'file', size: 1, mtimeMs: fixture.billingMtime, isLink: false },
     ],
   }))
   on('fs.read', (_, e) => ({
-    value: e.path.endsWith('program.json') ? (fixture['program.json'] ?? '') : fixture['billing.json'],
+    value: !e.path.includes(`${FOLDER}/`)
+      ? ''
+      : e.path.endsWith('program.json')
+        ? (fixture['program.json'] ?? '')
+        : fixture['billing.json'],
   }))
 }
 
@@ -90,4 +98,41 @@ test('a malformed program.json says so instead of failing quietly', async ($, on
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect((await ui.find({ type: 'Text' }))?.text).toBe('program.json is not valid')
   await ui.unmount()
+})
+
+test('a second session in the same folder sees neither the first session\'s program nor the shared folder', async ($, on) => {
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('session.id', () => ({ value: 'sess-b' }))
+  on('clock.now', () => ({ value: NOW }))
+  on('clock.every', () => ({ value: undefined }))
+  on('fs.exists', (_, e) => ({ value: !e.path.includes('sess-b') }))
+  on('fs.list', () => ({ value: [] }))
+  on('fs.read', () => ({ value: PROGRAM }))
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>engine</Text>
+  })
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text' }))?.text).toBe('engine')
+  await ui.unmount()
+})
+
+test('the system prompt names this session\'s own progress folder', async ($, on) => {
+  seed(on, files(null, ''))
+  on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'hi', scope: 'shared' }] }))
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+
+  const { sections } = await $.prompt.compose({
+    model: 'm',
+    promptModel: 'm',
+    surfaces: ['terminal'],
+    tools: [],
+    outputStyle: null,
+    traits: [],
+  })
+  const folder = sections.find(section => section.id === 'progress-band:folder')
+  expect(folder?.scope).toBe('session')
+  expect(folder?.text).toContain(`/repo/${FOLDER}`)
 })
