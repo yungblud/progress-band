@@ -1,6 +1,6 @@
 {
   "name": "progress-band",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A live progress bar above the prompt for multi-agent work: overall percent, one row per running subagent, and what comes next.",
   "author": {
     "name": "yungblud"
